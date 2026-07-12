@@ -22,6 +22,9 @@ public class Room {
     @Column(nullable = false)
     private String name;
 
+    @Column(nullable = false)
+    private Boolean isActive = true;
+
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "owner_id",nullable = false)
     private User owner;
