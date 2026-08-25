@@ -33,6 +33,10 @@ public class RoomMembershipService {
         Room room = roomRepository.findById(roomId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
 
+        if (!room.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Room is no longer active");
+        }
+
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "User not found"));
 

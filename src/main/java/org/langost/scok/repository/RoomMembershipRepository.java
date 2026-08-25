@@ -14,7 +14,7 @@ public interface RoomMembershipRepository extends JpaRepository<RoomMembership,L
     @Query("""
             SELECT rm.room 
             FROM  RoomMembership rm
-            WHERE rm.user.id=:userId           
+            WHERE rm.user.id=:userId AND rm.room.isActive=true
             """)
     List<Room> findRoomsByUserId(@Param("userId")Long userId);
     boolean existsByRoomIdAndUserId(Long roomId, Long userId);

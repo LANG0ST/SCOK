@@ -3,7 +3,7 @@ package org.langost.scok.controller;
 import lombok.RequiredArgsConstructor;
 import org.langost.scok.dto.request.ChangeRoomNameRequest;
 import org.langost.scok.dto.request.RoomCreationRequest;
-import org.langost.scok.entity.Room;
+import org.langost.scok.dto.response.RoomResponse;
 import org.langost.scok.entity.UserPrincipal;
 import org.langost.scok.service.RoomService;
 import org.springframework.http.ResponseEntity;
@@ -20,7 +20,7 @@ public class RoomController {
     private final RoomService roomService;
 
     @PostMapping
-    public ResponseEntity<Room> create(
+    public ResponseEntity<RoomResponse> create(
             @RequestBody RoomCreationRequest request,
             @AuthenticationPrincipal UserPrincipal principal)
     {
@@ -30,19 +30,19 @@ public class RoomController {
     }
 
     @GetMapping("/{roomId}")
-    public ResponseEntity<Room> getDetails(
+    public ResponseEntity<RoomResponse> getDetails(
             @PathVariable Long roomId,
             @AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(roomService.getDetails(roomId, principal.getUser().getId()));
     }
 
     @GetMapping("/mine")
-    public ResponseEntity<List<Room>> getUserRooms(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<List<RoomResponse>> getUserRooms(@AuthenticationPrincipal UserPrincipal principal) {
         return ResponseEntity.ok(roomService.getUserRooms(principal.getUser().getId()));
     }
 
     @PatchMapping("/{roomId}")
-    public ResponseEntity<Room> changeRoomName(
+    public ResponseEntity<RoomResponse> changeRoomName(
             @PathVariable long roomId,
             @RequestBody ChangeRoomNameRequest request,
             @AuthenticationPrincipal UserPrincipal principal) {
@@ -60,4 +60,3 @@ public class RoomController {
         return ResponseEntity.noContent().build();
     }
 }
-

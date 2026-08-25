@@ -4,6 +4,7 @@ import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import org.langost.scok.dto.request.ChangeRoomNameRequest;
 import org.langost.scok.dto.request.RoomCreationRequest;
+import org.langost.scok.dto.response.RoomResponse;
 import org.langost.scok.entity.Room;
 import org.langost.scok.entity.RoomMembership;
 import org.langost.scok.entity.User;
@@ -26,7 +27,7 @@ public class RoomService {
     private final RoomMembershipRepository roomMembershipRepository;
 
 
-    public Room create(RoomCreationRequest request,Long ownerId){
+    public RoomResponse create(RoomCreationRequest request,Long ownerId){
 
         if(roomRepository.existsByNameAndOwnerId(request.roomName(),ownerId))
         {
@@ -44,30 +45,33 @@ public class RoomService {
         membership.setRoom(room);
         roomMembershipRepository.save(membership);
 
-        return roomRepository.save(room);
+        return toResponse(roomRepository.save(room));
 
     }
 
-    public Room getDetails(Long roomId, Long currentUserId) {
+    public RoomResponse getDetails(Long roomId, Long currentUserId) {
         if (!roomMembershipRepository.existsByRoomIdAndUserId(roomId, currentUserId)) {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN, "Not a member of this room");
         }
-        return roomRepository.findById(roomId)
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+        return toResponse(findActiveRoom(roomId));
     }
 
-    public List<Room> getUserRooms(Long userId){
-        return roomMembershipRepository.findRoomsByUserId(userId);
+    public List<RoomResponse> getUserRooms(Long userId){
+        return roomMembershipRepository.findRoomsByUserId(userId)
+                .stream()
+                .map(this::toResponse)
+                .toList();
 
     }
 
-    public Room changeRoomName(Long roomId, ChangeRoomNameRequest request,Long currentUserId){
+    public RoomResponse changeRoomName(Long roomId, ChangeRoomNameRequest request,Long currentUserId){
 
         Room room = roomRepository.findByIdAndOwnerId(roomId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "You are not the owner of this room"));
+        checkRoomIsActive(room);
         room.setName(request.newName());
-        return roomRepository.save(room);
+        return toResponse(roomRepository.save(room));
 
     }
 
@@ -76,8 +80,33 @@ public class RoomService {
         Room room = roomRepository.findByIdAndOwnerId(roomId, currentUserId)
                 .orElseThrow(() -> new ResponseStatusException(
                         HttpStatus.FORBIDDEN, "You are not the owner of this room"));
+        checkRoomIsActive(room);
         room.setIsActive(false);
         roomRepository.save(room);
+    }
+
+    private Room findActiveRoom(Long roomId) {
+        Room room = roomRepository.findById(roomId)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Room not found"));
+        checkRoomIsActive(room);
+        return room;
+    }
+
+    private void checkRoomIsActive(Room room) {
+        if (!room.getIsActive()) {
+            throw new ResponseStatusException(HttpStatus.GONE, "Room is no longer active");
+        }
+    }
+
+    private RoomResponse toResponse(Room room) {
+        return new RoomResponse(
+                room.getId(),
+                room.getName(),
+                room.getOwner().getId(),
+                room.getOwner().getUsername(),
+                room.getIsActive(),
+                room.getCreatedAt()
+        );
     }
 
 }
