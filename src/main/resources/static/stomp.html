@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>STOMP Test</title>
+</head>
+<body>
+    <h1>Open the console (F12)</h1>
+    <script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.2.0/bundles/stomp.umd.min.js"></script>
+    <script>
+        const accessToken = "eyJ";
+        const roomId = 1;
+        const client = new StompJs.Client({
+            brokerURL: "ws://localhost:8080/ws",
+            connectHeaders: {
+                Authorization: `Bearer ${accessToken}`
+            },
+            debug(message) {
+                console.log("[STOMP]", message);
+            },
+            onConnect() {
+                console.log("STOMP connected");
+                client.subscribe(
+                    `/topic/rooms/${roomId}`,
+                    message => {
+                        const payload = JSON.parse(message.body);
+                        console.log("Room message:", payload);
+                    }
+                );
+                client.subscribe(
+                    "/user/queue/errors",
+                    message => {
+                        const error = JSON.parse(message.body);
+                        console.error("Chat error:", error);
+                    }
+                );
+                client.publish({
+                    destination: `/app/rooms/${roomId}/messages`,
+                    headers: {
+                        "content-type": "application/json"
+                    },
+                    body: JSON.stringify({
+                        content: "Hello from STOMP"
+                    })
+                });
+            },
+            onStompError(frame) {
+                console.error("STOMP error:", frame);
+            },
+            onWebSocketError(error) {
+                console.error("WebSocket error:", error);
+            }
+        });
+        client.activate();
+    </script>
+</body>
+</html>

@@ -39,13 +39,14 @@ public class RoomService {
         Room room = new Room();
         room.setName(request.roomName());
         room.setOwner(owner);
+        room = roomRepository.save(room);
 
         RoomMembership membership = new RoomMembership();
         membership.setUser(owner);
         membership.setRoom(room);
         roomMembershipRepository.save(membership);
 
-        return toResponse(roomRepository.save(room));
+        return toResponse(room);
 
     }
 
