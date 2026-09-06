@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SCOK - Login</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="page auth-page">
+    <section class="card auth-card stack">
+        <div>
+            <h1>SCOK</h1>
+            <p class="muted">A very small chat.</p>
+        </div>
+
+        <form id="login-form">
+            <h2>Login</h2>
+            <input id="login-email" type="email" placeholder="Email" required>
+            <input id="login-password" type="password" placeholder="Password" minlength="8" required>
+            <button type="submit">Login</button>
+        </form>
+
+        <form id="signup-form">
+            <h2>Sign up</h2>
+            <input id="signup-username" placeholder="Username" required>
+            <input id="signup-email" type="email" placeholder="Email" required>
+            <input id="signup-password" type="password" placeholder="Password" minlength="8" required>
+            <button type="submit">Create account</button>
+        </form>
+
+        <p id="status" class="status"></p>
+    </section>
+</main>
+
+<script src="/app.js"></script>
+<script>
+    const status = document.querySelector("#status");
+
+    async function login(email, password) {
+        const response = await fetch("/api/auth/login", {
+            method: "POST",
+            headers: {"Content-Type": "application/json"},
+            body: JSON.stringify({email, password})
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.message || body.error || "Login failed");
+        SCOK.saveSession(body);
+        location.replace("/rooms.html");
+    }
+
+    document.querySelector("#login-form").addEventListener("submit", async event => {
+        event.preventDefault();
+        status.textContent = "";
+        try {
+            await login(
+                document.querySelector("#login-email").value,
+                document.querySelector("#login-password").value
+            );
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    });
+
+    document.querySelector("#signup-form").addEventListener("submit", async event => {
+        event.preventDefault();
+        status.textContent = "";
+        const email = document.querySelector("#signup-email").value;
+        const password = document.querySelector("#signup-password").value;
+
+        try {
+            const response = await fetch("/api/auth/signup", {
+                method: "POST",
+                headers: {"Content-Type": "application/json"},
+                body: JSON.stringify({
+                    username: document.querySelector("#signup-username").value,
+                    email,
+                    password
+                })
+            });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.message || body.error || "Signup failed");
+            await login(email, password);
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    });
+</script>
+</body>
+</html>

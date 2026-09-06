@@ -36,7 +36,10 @@ public class SecurityConfig {
                                         "/api/auth/refresh",
                                         "/ws/**",
                                         "/error",
-                                        "/stomp.html"
+                                        "/",
+                                        "/*.html",
+                                        "/*.css",
+                                        "/*.js"
                         ).permitAll()
                         .anyRequest().authenticated()
                 )

@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SCOK - Rooms</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="page stack">
+    <header class="row space-between">
+        <div>
+            <h1>Rooms</h1>
+            <span id="welcome" class="muted"></span>
+        </div>
+        <button id="logout" class="secondary">Logout</button>
+    </header>
+
+    <section class="card stack">
+        <form id="create-form" class="row">
+            <input id="room-name" placeholder="New room name" required>
+            <button type="submit">Create</button>
+        </form>
+        <form id="join-form" class="row">
+            <input id="room-id" type="number" min="1" placeholder="Room ID" required>
+            <button type="submit">Join</button>
+        </form>
+        <p id="status" class="status"></p>
+    </section>
+
+    <section>
+        <h2>Your rooms</h2>
+        <div id="rooms" class="rooms"></div>
+    </section>
+</main>
+
+<script src="/app.js"></script>
+<script>
+    SCOK.requireSession();
+
+    const roomsElement = document.querySelector("#rooms");
+    const status = document.querySelector("#status");
+    document.querySelector("#welcome").textContent = `Signed in as ${SCOK.username()}`;
+
+    function openRoom(roomId) {
+        location.href = `/chat.html?roomId=${roomId}`;
+    }
+
+    function showRooms(rooms) {
+        roomsElement.replaceChildren();
+        if (rooms.length === 0) {
+            roomsElement.textContent = "You have no rooms yet.";
+            return;
+        }
+
+        for (const room of rooms) {
+            const item = document.createElement("div");
+            item.className = "room";
+
+            const text = document.createElement("span");
+            text.textContent = `${room.name} (#${room.id})`;
+
+            const button = document.createElement("button");
+            button.textContent = "Open";
+            button.addEventListener("click", () => openRoom(room.id));
+
+            item.append(text, button);
+            roomsElement.append(item);
+        }
+    }
+
+    async function loadRooms() {
+        try {
+            showRooms(await SCOK.api("/api/room/mine"));
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    }
+
+    document.querySelector("#create-form").addEventListener("submit", async event => {
+        event.preventDefault();
+        status.textContent = "";
+        try {
+            const room = await SCOK.api("/api/room", {
+                method: "POST",
+                body: JSON.stringify({roomName: document.querySelector("#room-name").value})
+            });
+            openRoom(room.id);
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    });
+
+    document.querySelector("#join-form").addEventListener("submit", async event => {
+        event.preventDefault();
+        status.textContent = "";
+        const roomId = document.querySelector("#room-id").value;
+        try {
+            await SCOK.api(`/api/room/${roomId}/members`, {method: "POST"});
+            openRoom(roomId);
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    });
+
+    document.querySelector("#logout").addEventListener("click", SCOK.logout);
+    loadRooms();
+</script>
+</body>
+</html>
