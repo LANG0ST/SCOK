@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>SCOK - Chat</title>
+    <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main class="page chat-page">
+    <header class="row space-between">
+        <div class="row">
+            <button class="secondary" onclick="location.href='/rooms.html'">Back</button>
+            <div>
+                <h1 id="room-name">Room</h1>
+                <span id="connection" class="muted">Connecting...</span>
+            </div>
+        </div>
+        <button id="leave" class="danger">Leave room</button>
+    </header>
+
+    <section id="messages" class="messages"></section>
+
+    <div>
+        <p id="status" class="status"></p>
+        <form id="send-form" class="send-form">
+            <input id="content" placeholder="Message" autocomplete="off" required>
+            <button type="submit">Send</button>
+        </form>
+    </div>
+</main>
+
+<script src="https://cdn.jsdelivr.net/npm/@stomp/stompjs@7.2.0/bundles/stomp.umd.min.js"></script>
+<script src="/app.js"></script>
+<script>
+    SCOK.requireSession();
+
+    const roomId = new URLSearchParams(location.search).get("roomId");
+    const messagesElement = document.querySelector("#messages");
+    const status = document.querySelector("#status");
+    const connection = document.querySelector("#connection");
+    let client;
+
+    if (!roomId) location.replace("/rooms.html");
+
+    function addMessage(message) {
+        const bubble = document.createElement("div");
+        bubble.className = "message";
+        if (String(message.senderId) === SCOK.userId()) bubble.classList.add("mine");
+
+        const sender = document.createElement("small");
+        sender.textContent = message.senderUsername;
+
+        const content = document.createElement("span");
+        content.textContent = message.content;
+
+        bubble.append(sender, content);
+        messagesElement.append(bubble);
+        messagesElement.scrollTop = messagesElement.scrollHeight;
+    }
+
+    async function start() {
+        try {
+            const [room, messages] = await Promise.all([
+                SCOK.api(`/api/room/${roomId}`),
+                SCOK.api(`/api/room/${roomId}/messages`)
+            ]);
+            document.querySelector("#room-name").textContent = `${room.name} (#${room.id})`;
+            messages.forEach(addMessage);
+            connect();
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    }
+
+    function connect() {
+        const protocol = location.protocol === "https:" ? "wss:" : "ws:";
+        client = new StompJs.Client({
+            brokerURL: `${protocol}//${location.host}/ws`,
+            reconnectDelay: 5000,
+            beforeConnect() {
+                client.connectHeaders = {Authorization: `Bearer ${SCOK.accessToken()}`};
+            },
+            onConnect() {
+                connection.textContent = "Connected";
+                client.subscribe(`/topic/rooms/${roomId}`, frame => {
+                    addMessage(JSON.parse(frame.body));
+                });
+                client.subscribe("/user/queue/errors", frame => {
+                    const error = JSON.parse(frame.body);
+                    status.textContent = error.message;
+                });
+            },
+            onWebSocketClose() {
+                connection.textContent = "Disconnected";
+            },
+            onStompError(frame) {
+                status.textContent = frame.headers.message || "WebSocket error";
+            }
+        });
+        client.activate();
+    }
+
+    document.querySelector("#send-form").addEventListener("submit", event => {
+        event.preventDefault();
+        status.textContent = "";
+        const input = document.querySelector("#content");
+
+        if (!client?.connected) {
+            status.textContent = "WebSocket is not connected";
+            return;
+        }
+
+        client.publish({
+            destination: `/app/rooms/${roomId}/messages`,
+            headers: {"content-type": "application/json"},
+            body: JSON.stringify({content: input.value})
+        });
+        input.value = "";
+    });
+
+    document.querySelector("#leave").addEventListener("click", async () => {
+        if (!confirm("Leave this room?")) return;
+        try {
+            await SCOK.api(`/api/room/${roomId}/members/me`, {method: "DELETE"});
+            if (client) await client.deactivate();
+            location.replace("/rooms.html");
+        } catch (error) {
+            status.textContent = error.message;
+        }
+    });
+
+    window.addEventListener("beforeunload", () => client?.deactivate());
+    start();
+</script>
+</body>
+</html>
